@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  # 시나리오 1: 정상 컨테이너 (수동 stop 테스트용)
+  # docker stop test-normal 명령으로 종료 (Exit Code: 143 - SIGTERM)
+  test-normal:
+    image: alpine:latest
+    container_name: test-normal
+    command: ["sh", "-c", "echo 'Normal container started'; while true; do echo 'Running...'; sleep 5; done"]
+
+  # 시나리오 2: 5초 후 에러로 크래시 (Exit Code: 1)
+  test-crash:
+    image: alpine:latest
+    container_name: test-crash
+    command: ["sh", "-c", "echo 'Crash container started'; sleep 5; echo 'ERROR: Something went wrong!'; exit 1"]
+
+  # 시나리오 3: 계속 재시작되는 컨테이너 (restart policy 없이)
+  # 3초마다 크래시 - 모니터링 서비스에서 중복 방지 테스트
+  test-crashloop:
+    image: alpine:latest
+    container_name: test-crashloop
+    command: ["sh", "-c", "echo 'CrashLoop container started at $(date)'; sleep 3; echo 'FATAL: Application crashed!'; exit 1"]
+    restart: always
+
+  # 시나리오 4: Segmentation Fault (Exit Code: 139)
+  test-segfault:
+    image: alpine:latest
+    container_name: test-segfault
+    command: ["sh", "-c", "echo 'SegFault container started'; sleep 8; kill -SIGSEGV $$"]
+
+  # 시나리오 5: docker kill로 강제 종료될 컨테이너 (Exit Code: 137 - SIGKILL)
+  test-kill:
+    image: alpine:latest
+    container_name: test-kill
+    command: ["sh", "-c", "echo 'Kill test container started'; while true; do echo 'Waiting to be killed...'; sleep 5; done"]
+
+  # 시나리오 6: OOM Killer 테스트 (메모리 제한 + 메모리 폭주)
+  test-oom:
+    image: alpine:latest
+    container_name: test-oom
+    mem_limit: 10m
+    command: ["sh", "-c", "echo 'OOM container started'; sleep 3; echo 'Allocating memory...'; dd if=/dev/zero of=/dev/null bs=1M count=100"]

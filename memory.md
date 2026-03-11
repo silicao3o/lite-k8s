@@ -128,3 +128,54 @@ docker.monitor:
 - [ ] 리소스 모니터링 (CPU/Memory)
 - [ ] Health 엔드포인트
 - [ ] 이메일 재시도 로직
+
+---
+
+## 2026-03-11: 테스트 실행 결과
+
+### 테스트 환경
+- IntelliJ에서 DockerMonitorApplication 실행
+- test-containers/docker-compose.yml로 테스트 컨테이너 생성
+
+### 테스트 시나리오 및 결과
+
+| 컨테이너 | 시나리오 | 결과 |
+|---------|---------|------|
+| test-normal | docker stop (SIGTERM) | ✅ kill/die 이벤트 감지 |
+| test-crash | 5초 후 에러 크래시 (Exit 1) | ✅ die 이벤트 감지 |
+| test-kill | docker kill (SIGKILL) | ✅ kill/die 이벤트 감지 |
+| test-crashloop | 3초마다 재시작 | ✅ 첫 알림만 전송, 이후 중복 스킵 |
+
+### 핵심 로그
+
+**1. 컨테이너 종료 감지**
+```
+컨테이너 종료 감지: containerId=11aacd3de03..., action=kill
+컨테이너 종료 알림 전송 완료: test-normal
+```
+
+**2. 중복 알림 방지 동작 확인**
+```
+중복 알림 스킵: 145ef9c5b4f...:die (3초 전 알림 발송됨)
+중복 알림 스킵: 145ef9c5b4f...:die (6초 전 알림 발송됨)
+중복 알림 스킵: 145ef9c5b4f...:die (10초 전 알림 발송됨)
+```
+→ crashloop 컨테이너가 여러 번 죽었지만 60초 윈도우 내 중복 알림 차단됨
+
+**3. 이메일 전송 시도**
+```
+이메일 전송 실패: test-normal
+Caused by: jakarta.mail.AuthenticationFailedException
+```
+→ Gmail 앱 비밀번호 미설정으로 인한 예상된 실패 (기능 자체는 정상)
+
+### 검증된 기능
+- [x] Docker 이벤트 스트림 연결
+- [x] die/kill 이벤트 감지
+- [x] 컨테이너 정보 수집 (이름, ID 등)
+- [x] 중복 알림 방지 (60초 윈도우)
+- [x] 비동기 이메일 전송 시도
+
+### 테스트 파일 위치
+- `test-containers/docker-compose.yml` - 테스트 시나리오 정의
+- `test-containers/run-tests.sh` - 자동화 테스트 스크립트
