@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker Monitor</title>
+    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+</head>
+<body>
+    <div class="layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M21 8c-1.45 0-2.26 1.44-1.93 2.51l-3.55 3.56c-.3-.09-.74-.09-1.04 0l-2.55-2.55C12.27 10.45 11.46 9 10 9c-1.45 0-2.27 1.44-1.93 2.52l-4.56 4.55C2.44 15.74 1 16.55 1 18c0 1.1.9 2 2 2 1.45 0 2.26-1.44 1.93-2.51l4.55-4.56c.3.09.74.09 1.04 0l2.55 2.55C12.73 16.55 13.54 18 15 18c1.45 0 2.27-1.44 1.93-2.52l3.56-3.55c1.07.33 2.51-.48 2.51-1.93 0-1.1-.9-2-2-2z"/>
+                    </svg>
+                </div>
+                <h1>Docker Monitor</h1>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Workloads</div>
+                    <a href="/" class="nav-item active">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" rx="1"/>
+                            <rect x="14" y="3" width="7" height="7" rx="1"/>
+                            <rect x="3" y="14" width="7" height="7" rx="1"/>
+                            <rect x="14" y="14" width="7" height="7" rx="1"/>
+                        </svg>
+                        Containers
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="page-header">
+                <h2>Containers</h2>
+                <p>Docker container overview and management</p>
+            </div>
+
+            <!-- Stats -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="label">Total Containers</div>
+                    <div class="value" th:text="${totalCount}">0</div>
+                </div>
+                <div class="stat-card running">
+                    <div class="label">Running</div>
+                    <div class="value" th:text="${runningCount}">0</div>
+                </div>
+                <div class="stat-card stopped">
+                    <div class="label">Stopped</div>
+                    <div class="value" th:text="${stoppedCount}">0</div>
+                </div>
+            </div>
+
+            <!-- Container Table -->
+            <div class="table-card">
+                <div class="table-header">
+                    <h3>Container List</h3>
+                    <div class="table-actions">
+                        <label class="filter-toggle">
+                            <input type="checkbox"
+                                   th:checked="${showAll}"
+                                   onchange="window.location.href='/?showAll=' + this.checked">
+                            Show All
+                        </label>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table th:if="${!containers.isEmpty()}">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Image</th>
+                                <th>Status</th>
+                                <th>Container ID</th>
+                                <th>Ports</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="container : ${containers}">
+                                <td>
+                                    <a th:href="@{/containers/{id}(id=${container.id})}"
+                                       class="container-link"
+                                       th:text="${container.name}">container-name</a>
+                                </td>
+                                <td th:text="${container.image}">image:tag</td>
+                                <td>
+                                    <span class="status-badge"
+                                          th:classappend="${container.statusClass}"
+                                          th:text="${container.state}">running</span>
+                                </td>
+                                <td>
+                                    <span class="container-id" th:text="${container.shortId}">abc123</span>
+                                </td>
+                                <td>
+                                    <div class="port-list">
+                                        <span th:if="${container.ports.isEmpty()}" class="port-badge">-</span>
+                                        <span th:each="port : ${container.ports}"
+                                              class="port-badge"
+                                              th:text="${port.displayString}">8080:80/tcp</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div th:if="${containers.isEmpty()}" class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <path d="M9 9h6M9 12h6M9 15h4"/>
+                        </svg>
+                        <h3>No containers found</h3>
+                        <p>No Docker containers are currently available.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

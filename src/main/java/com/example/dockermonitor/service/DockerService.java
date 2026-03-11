@@ -1,8 +1,11 @@
 package com.example.dockermonitor.service;
 
 import com.example.dockermonitor.model.ContainerDeathEvent;
+import com.example.dockermonitor.model.ContainerInfo;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.InspectContainerResponse;
+import com.github.dockerjava.api.model.Container;
+import com.github.dockerjava.api.model.ContainerPort;
 import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.core.command.LogContainerResultCallback;
 import lombok.RequiredArgsConstructor;
@@ -104,5 +107,77 @@ public class DockerService {
         } catch (Exception e) {
             return LocalDateTime.now();
         }
+    }
+
+    public List<ContainerInfo> listContainers(boolean showAll) {
+        List<Container> containers = dockerClient.listContainersCmd()
+                .withShowAll(showAll)
+                .exec();
+
+        return containers.stream()
+                .map(this::toContainerInfo)
+                .toList();
+    }
+
+    public ContainerInfo getContainer(String containerId) {
+        try {
+            InspectContainerResponse inspection = dockerClient.inspectContainerCmd(containerId).exec();
+            return toContainerInfo(inspection);
+        } catch (Exception e) {
+            log.error("컨테이너 조회 실패: {}", containerId, e);
+            return null;
+        }
+    }
+
+    private ContainerInfo toContainerInfo(Container container) {
+        String name = container.getNames() != null && container.getNames().length > 0
+                ? container.getNames()[0].replaceFirst("^/", "")
+                : "unknown";
+
+        List<ContainerInfo.PortMapping> ports = new ArrayList<>();
+        if (container.getPorts() != null) {
+            for (ContainerPort port : container.getPorts()) {
+                ports.add(ContainerInfo.PortMapping.builder()
+                        .privatePort(port.getPrivatePort() != null ? port.getPrivatePort() : 0)
+                        .publicPort(port.getPublicPort() != null ? port.getPublicPort() : 0)
+                        .type(port.getType() != null ? port.getType() : "tcp")
+                        .build());
+            }
+        }
+
+        return ContainerInfo.builder()
+                .id(container.getId())
+                .shortId(container.getId().substring(0, Math.min(12, container.getId().length())))
+                .name(name)
+                .image(container.getImage())
+                .status(container.getStatus())
+                .state(container.getState())
+                .created(LocalDateTime.ofInstant(
+                        Instant.ofEpochSecond(container.getCreated()),
+                        ZoneId.systemDefault()))
+                .ports(ports)
+                .labels(container.getLabels())
+                .build();
+    }
+
+    private ContainerInfo toContainerInfo(InspectContainerResponse inspection) {
+        String name = inspection.getName();
+        if (name != null && name.startsWith("/")) {
+            name = name.substring(1);
+        }
+
+        InspectContainerResponse.ContainerState state = inspection.getState();
+
+        return ContainerInfo.builder()
+                .id(inspection.getId())
+                .shortId(inspection.getId().substring(0, Math.min(12, inspection.getId().length())))
+                .name(name)
+                .image(inspection.getConfig().getImage())
+                .status(state.getStatus())
+                .state(state.getStatus())
+                .created(parseDockerTime(inspection.getCreated()))
+                .ports(new ArrayList<>())
+                .labels(inspection.getConfig().getLabels())
+                .build();
     }
 }

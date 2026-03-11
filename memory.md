@@ -179,3 +179,66 @@ Caused by: jakarta.mail.AuthenticationFailedException
 ### 테스트 파일 위치
 - `test-containers/docker-compose.yml` - 테스트 시나리오 정의
 - `test-containers/run-tests.sh` - 자동화 테스트 스크립트
+
+---
+
+## 2026-03-12: K8s 스타일 웹 대시보드 구현
+
+### 개요
+Thymeleaf 기반 K8s 스타일 다크 테마 대시보드 추가
+
+### 추가된 의존성
+```xml
+spring-boot-starter-web
+spring-boot-starter-thymeleaf
+```
+
+### 새로 생성된 파일
+
+| 파일 | 설명 |
+|------|------|
+| `model/ContainerInfo.java` | 컨테이너 정보 DTO |
+| `controller/DashboardController.java` | 웹 컨트롤러 |
+| `templates/dashboard.html` | 메인 대시보드 |
+| `templates/container-detail.html` | 컨테이너 상세 페이지 |
+| `static/css/dashboard.css` | K8s 다크 테마 스타일 |
+
+### 수정된 파일
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `pom.xml` | web, thymeleaf 의존성 추가 |
+| `DockerService.java` | listContainers(), getContainer() 메서드 추가 |
+
+### 엔드포인트
+
+| URL | 설명 |
+|-----|------|
+| `GET /` | 대시보드 메인 (컨테이너 목록) |
+| `GET /containers/{id}` | 컨테이너 상세 페이지 |
+| `GET /api/containers/{id}/logs` | 컨테이너 로그 API |
+
+### UI 기능
+- 다크 네이비 테마 (#0f1419, #1a2332)
+- 왼쪽 사이드바 네비게이션
+- 컨테이너 목록 테이블 (이름, 이미지, 상태, ID, 포트)
+- 상태별 컬러 뱃지:
+  - Running: 녹색 (#34d399)
+  - Exited: 빨강 (#f87171)
+  - Paused: 노랑 (#fbbf24)
+- 컨테이너 상세 정보 카드
+- 로그 뷰어 (새로고침 버튼)
+
+### 실행 방법
+```bash
+mvn spring-boot:run
+# http://localhost:8080 접속
+```
+
+### 현재 표시되는 실제 컨테이너
+| 이름 | 이미지 | 상태 |
+|------|--------|------|
+| elicelab_db | postgres:latest | Running |
+| elicelab_nginx | nginx:stable-alpine | Exited |
+| elicelab_backend | shop_elicelab-... | Exited |
+| elicelab_redis | redis:alpine | Exited |

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${container.name} + ' - Docker Monitor'">Container - Docker Monitor</title>
+    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+</head>
+<body>
+    <div class="layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M21 8c-1.45 0-2.26 1.44-1.93 2.51l-3.55 3.56c-.3-.09-.74-.09-1.04 0l-2.55-2.55C12.27 10.45 11.46 9 10 9c-1.45 0-2.27 1.44-1.93 2.52l-4.56 4.55C2.44 15.74 1 16.55 1 18c0 1.1.9 2 2 2 1.45 0 2.26-1.44 1.93-2.51l4.55-4.56c.3.09.74.09 1.04 0l2.55 2.55C12.73 16.55 13.54 18 15 18c1.45 0 2.27-1.44 1.93-2.52l3.56-3.55c1.07.33 2.51-.48 2.51-1.93 0-1.1-.9-2-2-2z"/>
+                    </svg>
+                </div>
+                <h1>Docker Monitor</h1>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Workloads</div>
+                    <a href="/" class="nav-item active">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" rx="1"/>
+                            <rect x="14" y="3" width="7" height="7" rx="1"/>
+                            <rect x="3" y="14" width="7" height="7" rx="1"/>
+                            <rect x="14" y="14" width="7" height="7" rx="1"/>
+                        </svg>
+                        Containers
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <div class="detail-header">
+                <a href="/" class="back-button">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 12H5M12 19l-7-7 7-7"/>
+                    </svg>
+                </a>
+                <div class="detail-title">
+                    <h2 th:text="${container.name}">container-name</h2>
+                    <div class="subtitle" th:text="${container.id}">container-id</div>
+                </div>
+                <span class="status-badge"
+                      th:classappend="${container.statusClass}"
+                      th:text="${container.state}">running</span>
+            </div>
+
+            <!-- Info Cards -->
+            <div class="info-grid">
+                <div class="info-card">
+                    <h4>Container Info</h4>
+                    <div class="info-row">
+                        <span class="info-label">Name</span>
+                        <span class="info-value" th:text="${container.name}">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Image</span>
+                        <span class="info-value" th:text="${container.image}">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Status</span>
+                        <span class="info-value" th:text="${container.status}">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Created</span>
+                        <span class="info-value" th:text="${#temporals.format(container.created, 'yyyy-MM-dd HH:mm:ss')}">-</span>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <h4>Labels</h4>
+                    <div th:if="${container.labels == null or container.labels.isEmpty()}" class="info-row">
+                        <span class="info-label">No labels</span>
+                    </div>
+                    <div th:each="entry : ${container.labels}" class="info-row">
+                        <span class="info-label" th:text="${entry.key}">key</span>
+                        <span class="info-value" th:text="${entry.value}">value</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logs -->
+            <div class="logs-card">
+                <div class="logs-header">
+                    <h3>Container Logs</h3>
+                    <button class="refresh-btn" onclick="refreshLogs()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 4v6h-6M1 20v-6h6"/>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                        </svg>
+                        Refresh
+                    </button>
+                </div>
+                <div class="logs-content">
+                    <pre id="logs" th:text="${logs}">Loading logs...</pre>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script th:inline="javascript">
+        const containerId = [[${container.id}]];
+
+        function refreshLogs() {
+            fetch('/api/containers/' + containerId + '/logs')
+                .then(response => response.text())
+                .then(logs => {
+                    document.getElementById('logs').textContent = logs;
+                })
+                .catch(err => {
+                    console.error('Failed to refresh logs:', err);
+                });
+        }
+    </script>
+</body>
+</html>
