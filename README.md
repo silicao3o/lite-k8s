@@ -1,0 +1,377 @@
+# Docker Container Monitor
+
+Docker 컨테이너가 비정상 종료되었을 때 이메일 알림을 보내주는 Spring Boot 기반 모니터링 서비스입니다.
+
+## 주요 기능
+
+- **실시간 컨테이너 감시**: Docker Events API를 통한 실시간 이벤트 스트리밍
+- **종료 이벤트 감지**: `die`, `kill`, `oom` 이벤트 자동 감지
+- **Exit Code 분석**: 종료 코드별 원인 분석 및 해결 방안 제시
+- **OOM Killer 감지**: 메모리 부족으로 인한 강제 종료 별도 표시
+- **마지막 로그 수집**: 종료 직전 컨테이너 로그 자동 수집
+- **이메일 알림**: HTML 형식의 상세한 알림 이메일 발송
+- **재연결 백오프**: 연결 끊김 시 지수 백오프로 자동 재연결
+- **컨테이너 필터링**: 정규식 패턴으로 모니터링 대상 필터링
+- **알림 중복 방지**: 동일 이벤트에 대한 중복 알림 차단
+- **설정 검증**: 시작 시 필수 설정 자동 검증
+
+## 기술 스택
+
+| 구성 요소 | 기술 |
+|----------|------|
+| Framework | Spring Boot 3.2.3 |
+| Java | 17+ |
+| Docker Client | docker-java 3.3.4 |
+| Build Tool | Maven |
+| Email | Spring Mail (Jakarta Mail) |
+
+## 프로젝트 구조
+
+```
+docker-monitor/
+├── pom.xml
+├── README.md
+├── memory.md
+└── src/
+    ├── main/
+    │   ├── java/com/example/dockermonitor/
+    │   │   ├── DockerMonitorApplication.java
+    │   │   ├── analyzer/
+    │   │   │   └── ExitCodeAnalyzer.java
+    │   │   ├── config/
+    │   │   │   ├── AsyncConfig.java
+    │   │   │   ├── ConfigurationValidator.java
+    │   │   │   ├── DockerConfig.java
+    │   │   │   └── MonitorProperties.java
+    │   │   ├── listener/
+    │   │   │   └── DockerEventListener.java
+    │   │   ├── model/
+    │   │   │   └── ContainerDeathEvent.java
+    │   │   └── service/
+    │   │       ├── AlertDeduplicationService.java
+    │   │       ├── ContainerFilterService.java
+    │   │       ├── DockerService.java
+    │   │       └── EmailNotificationService.java
+    │   └── resources/
+    │       └── application.yml
+    └── test/
+        ├── java/com/example/dockermonitor/
+        │   ├── DockerMonitorApplicationTests.java
+        │   ├── analyzer/
+        │   │   └── ExitCodeAnalyzerTest.java
+        │   ├── config/
+        │   │   └── ConfigurationValidatorTest.java
+        │   ├── listener/
+        │   │   └── DockerEventListenerTest.java
+        │   └── service/
+        │       ├── AlertDeduplicationServiceTest.java
+        │       ├── ContainerFilterServiceTest.java
+        │       ├── DockerServiceTest.java
+        │       └── EmailNotificationServiceTest.java
+        └── resources/
+            └── application.yml
+```
+
+## 빌드 및 실행
+
+### 요구 사항
+
+- Java 17 이상
+- Maven 3.6 이상
+- Docker 실행 환경
+
+### 빌드
+
+```bash
+# 테스트 실행
+mvn test
+
+# 패키지 빌드
+mvn clean package -DskipTests
+```
+
+### 실행
+
+#### 기본 실행
+
+```bash
+java -jar target/docker-monitor-1.0.0.jar
+```
+
+#### Gmail SMTP 사용
+
+```bash
+java -jar target/docker-monitor-1.0.0.jar \
+  --spring.mail.host=smtp.gmail.com \
+  --spring.mail.port=587 \
+  --spring.mail.username=your-email@gmail.com \
+  --spring.mail.password=your-app-password \
+  --docker.monitor.notification.email.to=admin@example.com \
+  --docker.monitor.server-name=Production-Server
+```
+
+#### 환경 변수 사용
+
+```bash
+export MAIL_USERNAME=your-email@gmail.com
+export MAIL_PASSWORD=your-app-password
+export ALERT_EMAIL=admin@example.com
+export SERVER_NAME=Production-Server-01
+
+java -jar target/docker-monitor-1.0.0.jar
+```
+
+### Docker로 실행
+
+```bash
+# 이미지 빌드
+docker build -t docker-monitor .
+
+# 실행
+docker run -d \
+  --name docker-monitor \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -e MAIL_USERNAME=your-email@gmail.com \
+  -e MAIL_PASSWORD=your-app-password \
+  -e ALERT_EMAIL=admin@example.com \
+  -e SERVER_NAME=Production-Server \
+  docker-monitor
+```
+
+## 설정
+
+### application.yml
+
+```yaml
+spring:
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+docker:
+  host: ${DOCKER_HOST:unix:///var/run/docker.sock}
+  monitor:
+    log-tail-lines: ${LOG_TAIL_LINES:50}
+    server-name: ${SERVER_NAME:Unknown Server}
+    notification:
+      email:
+        to: ${ALERT_EMAIL}
+        from: ${MAIL_FROM:docker-monitor@example.com}
+```
+
+### 주요 설정 옵션
+
+| 환경 변수 | 설명 | 기본값 |
+|----------|------|--------|
+| `DOCKER_HOST` | Docker 소켓 경로 | `unix:///var/run/docker.sock` |
+| `MAIL_USERNAME` | SMTP 사용자명 | - |
+| `MAIL_PASSWORD` | SMTP 비밀번호 | - |
+| `ALERT_EMAIL` | 알림 수신 이메일 (쉼표로 구분) | - |
+| `MAIL_FROM` | 발신자 이메일 | `docker-monitor@example.com` |
+| `SERVER_NAME` | 서버 식별 이름 | `Production-Server-01` |
+| `LOG_TAIL_LINES` | 수집할 로그 줄 수 | `50` |
+| `RECONNECT_MAX_RETRIES` | 최대 재연결 시도 횟수 | `10` |
+| `DEDUP_ENABLED` | 알림 중복 방지 활성화 | `true` |
+| `DEDUP_WINDOW_SECONDS` | 중복 판정 시간 창 (초) | `60` |
+
+### 컨테이너 필터링 설정
+
+`application.yml`에서 정규식 패턴으로 모니터링 대상을 필터링할 수 있습니다:
+
+```yaml
+docker:
+  monitor:
+    filter:
+      # 모니터링 제외 (정규식)
+      exclude-names:
+        - ".*-temp"
+        - "test-.*"
+      exclude-images:
+        - "busybox.*"
+      # 모니터링 포함 (비어있으면 모두 포함)
+      include-names: []
+      include-images: []
+```
+
+### 재연결 설정
+
+Docker 연결이 끊어졌을 때 지수 백오프로 자동 재연결합니다:
+
+```yaml
+docker:
+  monitor:
+    reconnect:
+      initial-delay-ms: 5000    # 초기 대기 시간
+      max-delay-ms: 300000      # 최대 대기 시간 (5분)
+      multiplier: 2.0           # 백오프 배수
+      max-retries: 10           # 최대 재시도 (0=무제한)
+```
+
+## Exit Code 분석
+
+서비스는 다양한 Exit Code를 분석하여 종료 원인을 파악합니다:
+
+| Exit Code | 의미 | 가능한 원인 |
+|-----------|------|------------|
+| 0 | 정상 종료 | 프로세스가 성공적으로 완료됨 |
+| 1 | 일반 에러 | 애플리케이션 내부 에러, 설정 오류 |
+| 126 | 실행 불가 | 권한 문제 또는 실행 파일이 아님 |
+| 127 | 명령 없음 | PATH에 명령이 없거나 오타 |
+| 137 | SIGKILL | OOM Killer, docker kill, 강제 종료 |
+| 139 | SIGSEGV | 세그멘테이션 폴트, 메모리 접근 위반 |
+| 143 | SIGTERM | docker stop, 정상 종료 요청 |
+
+## 알림 이메일 예시
+
+컨테이너가 종료되면 다음 정보가 포함된 이메일이 발송됩니다:
+
+```
+[DOWN] 컨테이너 종료 알림: my-app (Production-Server)
+
+서버: Production-Server
+컨테이너 이름: my-app
+컨테이너 ID: abc123def456
+이미지: nginx:latest
+종료 시간: 2026-03-10 14:30:22
+Exit Code: 137
+이벤트 타입: KILL
+OOM Killed: NO
+
+종료 원인 분석:
+[Exit Code: 137] SIGKILL (9) - 강제 종료됨
+
+가능한 원인:
+- docker kill 명령으로 강제 종료됨
+- 시스템 OOM Killer에 의해 종료됨
+- 메모리 제한 초과로 인한 종료
+
+마지막 로그:
+2026-03-10T14:30:20Z ERROR Connection timeout
+2026-03-10T14:30:21Z FATAL Shutting down...
+```
+
+## Gmail 앱 비밀번호 설정
+
+Gmail을 SMTP 서버로 사용하려면 앱 비밀번호가 필요합니다:
+
+1. Google 계정 > 보안 > 2단계 인증 활성화
+2. Google 계정 > 보안 > 앱 비밀번호
+3. 앱 선택: 메일, 기기 선택: 기타(맞춤 이름)
+4. 생성된 16자리 비밀번호를 `MAIL_PASSWORD`로 사용
+
+## 테스트
+
+```bash
+# 전체 테스트 실행
+mvn test
+
+# 특정 테스트 클래스 실행
+mvn test -Dtest=ExitCodeAnalyzerTest
+
+# 테스트 커버리지 리포트
+mvn test jacoco:report
+```
+
+### 테스트 커버리지
+
+총 **56개** 테스트 케이스
+
+| 클래스 | 테스트 항목 | 개수 |
+|--------|------------|:----:|
+| ExitCodeAnalyzer | Exit Code별 분석, OOM 감지, null 처리 | 12 |
+| DockerService | 컨테이너 정보 조회, 로그 수집, 예외 처리 | 6 |
+| EmailNotificationService | 이메일 전송, HTML 이스케이프, 다중 수신자 | 7 |
+| DockerEventListener | 이벤트 감지, 필터링, 중복 방지, 재연결 | 10 |
+| ContainerFilterService | 이름/이미지 패턴 필터링, 정규식 처리 | 8 |
+| AlertDeduplicationService | 중복 감지, 시간 윈도우, 활성화/비활성화 | 7 |
+| ConfigurationValidator | 필수 설정 검증, 다중 에러 처리 | 5 |
+| DockerMonitorApplication | 애플리케이션 컨텍스트 로드 | 1 |
+
+## 아키텍처
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                     Docker Monitor Service                        │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  ┌────────────────────┐                                          │
+│  │ ConfigValidator    │ ← 시작 시 설정 검증                        │
+│  └────────────────────┘                                          │
+│                                                                   │
+│  ┌────────────────────┐    ┌─────────────────────┐               │
+│  │ DockerEvent        │───▶│ Deduplication       │               │
+│  │ Listener           │    │ Service             │               │
+│  │ (이벤트 감지)       │    │ (중복 방지)          │               │
+│  │ + 자동 재연결       │    └──────────┬──────────┘               │
+│  └────────────────────┘               │                          │
+│           │                           ▼                          │
+│           │               ┌─────────────────────┐                │
+│           │               │ ContainerFilter     │                │
+│           │               │ Service             │                │
+│           │               │ (필터링)            │                │
+│           │               └──────────┬──────────┘                │
+│           │                          │                           │
+│           ▼                          ▼                           │
+│  ┌────────────────────┐    ┌─────────────────────┐               │
+│  │ DockerService      │───▶│ ExitCodeAnalyzer    │               │
+│  │ (정보 수집)         │    │ (원인 분석)          │               │
+│  └────────────────────┘    └──────────┬──────────┘               │
+│                                       │                          │
+│                                       ▼                          │
+│                          ┌─────────────────────┐                 │
+│                          │ EmailNotification   │                 │
+│                          │ Service (알림 발송)  │                 │
+│                          └─────────────────────┘                 │
+│                                                                   │
+└───────────────────────────────┬───────────────────────────────────┘
+                                │
+                                ▼
+                   ┌────────────────────────┐
+                   │   Docker Engine API    │
+                   │  (Unix Socket / TCP)   │
+                   └────────────────────────┘
+```
+
+## 트러블슈팅
+
+### Docker 소켓 연결 실패
+
+```
+Connection refused: /var/run/docker.sock
+```
+
+**해결 방법:**
+- Docker Desktop이 실행 중인지 확인
+- 소켓 파일 권한 확인: `ls -la /var/run/docker.sock`
+- Mac: Docker Desktop 설정에서 "Allow the default Docker socket" 활성화
+
+### 이메일 전송 실패
+
+```
+Mail server connection failed
+```
+
+**해결 방법:**
+- SMTP 호스트/포트 설정 확인
+- Gmail 사용 시 앱 비밀번호 사용 (일반 비밀번호 X)
+- 방화벽에서 SMTP 포트(587, 465) 허용
+
+### OOM 이벤트가 감지되지 않음
+
+Docker 컨테이너의 메모리 제한이 설정되어 있어야 OOM 이벤트가 발생합니다:
+
+```bash
+docker run -m 100m --memory-swap 100m your-image
+```
+
+## 라이선스
+
+MIT License
