@@ -547,3 +547,47 @@ tbody tr:last-child td {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--text-muted);
 }
+
+/* Healing Styles */
+.stat-card.healing {
+    border-left: 3px solid var(--status-running);
+}
+
+.healing-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.healing-badge.enabled {
+    background-color: rgba(52, 211, 153, 0.15);
+    color: var(--status-running);
+    border: 1px solid rgba(52, 211, 153, 0.3);
+}
+
+.healing-badge.disabled {
+    background-color: rgba(107, 114, 128, 0.15);
+    color: var(--text-muted);
+}
+
+.container-name {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.refresh-btn {
+    background-color: var(--accent-blue);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background-color 0.2s;
+}
+
+.refresh-btn:hover {
+    background-color: var(--accent-blue-hover);
+}

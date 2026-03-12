@@ -242,3 +242,122 @@ mvn spring-boot:run
 | elicelab_nginx | nginx:stable-alpine | Exited |
 | elicelab_backend | shop_elicelab-... | Exited |
 | elicelab_redis | redis:alpine | Exited |
+
+---
+
+## 2026-03-12: K8s 스타일 자가치유 구현 완료
+
+### 개요
+AI 에이전트 자가치유 대신 K8s 스타일 규칙 기반 자가치유 먼저 구현
+
+### 새로 추가된 파일
+
+| 파일 | 설명 |
+|------|------|
+| `config/SelfHealingProperties.java` | 자가치유 설정 (규칙 목록, 활성화 여부) |
+| `service/HealingRuleMatcher.java` | 컨테이너 이름 패턴 매칭 (와일드카드 지원) |
+| `service/RestartTracker.java` | 재시작 횟수 추적 |
+| `service/SelfHealingService.java` | 자가치유 로직 통합 |
+
+### 수정된 파일
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `DockerService.java` | `restartContainer()` 메서드 추가 |
+| `DockerEventListener.java` | SelfHealingService 연동 |
+
+### 설정 예시
+
+```yaml
+docker.monitor:
+  self-healing:
+    enabled: true
+    rules:
+      - name-pattern: "web-*"
+        max-restarts: 3
+        restart-delay-seconds: 10
+      - name-pattern: "worker-*"
+        max-restarts: 5
+        restart-delay-seconds: 5
+```
+
+### 동작 흐름
+
+```
+컨테이너 die 이벤트
+    ↓
+DockerEventListener 감지
+    ↓
+SelfHealingService.handleContainerDeath()
+    ↓
+HealingRuleMatcher.findMatchingRule() → 규칙 매칭
+    ↓
+RestartTracker.isMaxRestartsExceeded() → 횟수 확인
+    ↓
+DockerService.restartContainer() → 재시작
+    ↓
+RestartTracker.recordRestart() → 횟수 기록
+```
+
+### 테스트 현황
+- 총 테스트: 85개
+- 성공: 85개 (100%)
+
+---
+
+## 2026-03-12: 라벨 기반 설정 지원 추가
+
+### 개요
+컨테이너 라벨로 자가치유 설정 가능 (yml + 라벨 둘 다 지원)
+
+### 우선순위
+1. **라벨 설정** (컨테이너에 직접 설정)
+2. **yml 규칙** (Docker Monitor 설정)
+
+### 새로 추가된 파일
+
+| 파일 | 설명 |
+|------|------|
+| `service/ContainerLabelReader.java` | 컨테이너 라벨에서 자가치유 설정 읽기 |
+
+### 수정된 파일
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `model/ContainerDeathEvent.java` | `labels` 필드 추가 |
+| `service/DockerService.java` | 이벤트에 라벨 포함 |
+| `service/SelfHealingService.java` | 라벨 우선 로직 추가 |
+
+### 사용 예시
+
+**방법 1: docker-compose.yml**
+```yaml
+services:
+  web:
+    image: nginx
+    labels:
+      self-healing.enabled: "true"
+      self-healing.max-restarts: "3"
+```
+
+**방법 2: docker run**
+```bash
+docker run -d \
+  --label "self-healing.enabled=true" \
+  --label "self-healing.max-restarts=3" \
+  nginx
+```
+
+**방법 3: yml 규칙 (기존)**
+```yaml
+docker.monitor:
+  self-healing:
+    enabled: true
+    rules:
+      - name-pattern: "web-*"
+        max-restarts: 3
+```
+
+### 테스트 현황
+- 총 테스트: 85개
+- 성공: 85개 (100%)

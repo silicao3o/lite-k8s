@@ -5,6 +5,7 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.InspectContainerCmd;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.command.LogContainerCmd;
+import com.github.dockerjava.api.command.StartContainerCmd;
 import com.github.dockerjava.api.model.ContainerConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -38,6 +39,9 @@ class DockerServiceTest {
 
     @Mock
     private LogContainerCmd logContainerCmd;
+
+    @Mock
+    private StartContainerCmd startContainerCmd;
 
     private DockerService dockerService;
 
@@ -214,5 +218,36 @@ class DockerServiceTest {
         // then
         assertThat(event.getDeathTime()).isNotNull();
         assertThat(event.getDeathTime().getYear()).isGreaterThan(2000);
+    }
+
+    @Test
+    @DisplayName("컨테이너 재시작 - 성공")
+    void restartContainer_ShouldReturnTrueOnSuccess() {
+        // given
+        String containerId = "abc123def456";
+        when(dockerClient.startContainerCmd(containerId)).thenReturn(startContainerCmd);
+
+        // when
+        boolean result = dockerService.restartContainer(containerId);
+
+        // then
+        assertThat(result).isTrue();
+        verify(dockerClient).startContainerCmd(containerId);
+        verify(startContainerCmd).exec();
+    }
+
+    @Test
+    @DisplayName("컨테이너 재시작 - 실패")
+    void restartContainer_ShouldReturnFalseOnFailure() {
+        // given
+        String containerId = "nonexistent123";
+        when(dockerClient.startContainerCmd(containerId)).thenReturn(startContainerCmd);
+        doThrow(new RuntimeException("Container not found")).when(startContainerCmd).exec();
+
+        // when
+        boolean result = dockerService.restartContainer(containerId);
+
+        // then
+        assertThat(result).isFalse();
     }
 }

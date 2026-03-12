@@ -56,6 +56,7 @@ public class DockerService {
                     .oomKilled(oomKilled != null && oomKilled)
                     .action(action)
                     .lastLogs(lastLogs)
+                    .labels(inspection.getConfig().getLabels())
                     .build();
 
         } catch (Exception e) {
@@ -158,6 +159,17 @@ public class DockerService {
                 .ports(ports)
                 .labels(container.getLabels())
                 .build();
+    }
+
+    public boolean restartContainer(String containerId) {
+        try {
+            dockerClient.startContainerCmd(containerId).exec();
+            log.info("컨테이너 재시작 성공: {}", containerId);
+            return true;
+        } catch (Exception e) {
+            log.error("컨테이너 재시작 실패: {}", containerId, e);
+            return false;
+        }
     }
 
     private ContainerInfo toContainerInfo(InspectContainerResponse inspection) {

@@ -20,6 +20,11 @@ public class ContainerInfo {
     private List<PortMapping> ports;
     private Map<String, String> labels;
 
+    // 자가치유 관련 필드
+    private boolean healingEnabled;
+    private int restartCount;
+    private int maxRestarts;
+
     public String getStatusClass() {
         if (state == null) return "unknown";
         return switch (state.toLowerCase()) {

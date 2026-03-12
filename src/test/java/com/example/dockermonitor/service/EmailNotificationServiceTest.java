@@ -189,6 +189,32 @@ class EmailNotificationServiceTest {
         verify(mailSender).send(any(MimeMessage.class));
     }
 
+    @Test
+    @DisplayName("최대 재시작 횟수 초과 시 알림 전송")
+    void sendMaxRestartsExceededAlert_ShouldSendEmail() {
+        // given
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+
+        // when
+        emailNotificationService.sendMaxRestartsExceededAlert("web-server", "abc123", 3);
+
+        // then
+        verify(mailSender).send(any(MimeMessage.class));
+    }
+
+    @Test
+    @DisplayName("재시작 실패 시 알림 전송")
+    void sendRestartFailedAlert_ShouldSendEmail() {
+        // given
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+
+        // when
+        emailNotificationService.sendRestartFailedAlert("web-server", "abc123");
+
+        // then
+        verify(mailSender).send(any(MimeMessage.class));
+    }
+
     private ContainerDeathEvent createTestEvent() {
         return ContainerDeathEvent.builder()
                 .containerId("abc123def456")

@@ -7,6 +7,7 @@ import com.example.dockermonitor.service.AlertDeduplicationService;
 import com.example.dockermonitor.service.ContainerFilterService;
 import com.example.dockermonitor.service.DockerService;
 import com.example.dockermonitor.service.EmailNotificationService;
+import com.example.dockermonitor.service.SelfHealingService;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.command.EventsCmd;
@@ -51,6 +52,9 @@ class DockerEventListenerTest {
     private AlertDeduplicationService deduplicationService;
 
     @Mock
+    private SelfHealingService selfHealingService;
+
+    @Mock
     private EventsCmd eventsCmd;
 
     @Captor
@@ -69,7 +73,8 @@ class DockerEventListenerTest {
                 notificationService,
                 monitorProperties,
                 containerFilterService,
-                deduplicationService
+                deduplicationService,
+                selfHealingService
         );
 
         // 기본적으로 모든 컨테이너 모니터링 허용 (lenient: 사용하지 않는 테스트에서도 에러 안남)
@@ -324,5 +329,27 @@ class DockerEventListenerTest {
                 .action("die")
                 .lastLogs("Some logs here")
                 .build();
+    }
+
+    @Test
+    @DisplayName("die 이벤트 발생 시 SelfHealingService 호출")
+    void handleEvent_WhenDieEvent_ShouldCallSelfHealingService() {
+        // given
+        setupEventsCmdMock();
+
+        ContainerDeathEvent deathEvent = createTestDeathEvent();
+        when(dockerService.buildDeathEvent(anyString(), anyString())).thenReturn(deathEvent);
+        when(exitCodeAnalyzer.analyze(any())).thenReturn("SIGKILL로 강제 종료됨");
+
+        // when
+        dockerEventListener.startListening();
+        verify(eventsCmd).exec(callbackCaptor.capture());
+        ResultCallback<Event> callback = callbackCaptor.getValue();
+
+        Event dieEvent = createDockerEvent("die", "container123");
+        callback.onNext(dieEvent);
+
+        // then
+        verify(selfHealingService).handleContainerDeath(deathEvent);
     }
 }

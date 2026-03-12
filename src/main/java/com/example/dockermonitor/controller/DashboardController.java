@@ -1,7 +1,13 @@
 package com.example.dockermonitor.controller;
 
+import com.example.dockermonitor.config.SelfHealingProperties;
 import com.example.dockermonitor.model.ContainerInfo;
+import com.example.dockermonitor.model.HealingEvent;
+import com.example.dockermonitor.repository.HealingEventRepository;
+import com.example.dockermonitor.service.ContainerLabelReader;
 import com.example.dockermonitor.service.DockerService;
+import com.example.dockermonitor.service.HealingRuleMatcher;
+import com.example.dockermonitor.service.RestartTracker;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -17,11 +23,19 @@ import java.util.List;
 public class DashboardController {
 
     private final DockerService dockerService;
+    private final SelfHealingProperties selfHealingProperties;
+    private final ContainerLabelReader labelReader;
+    private final HealingRuleMatcher ruleMatcher;
+    private final RestartTracker restartTracker;
+    private final HealingEventRepository healingEventRepository;
 
     @GetMapping("/")
     public String dashboard(Model model,
                            @RequestParam(defaultValue = "true") boolean showAll) {
         List<ContainerInfo> containers = dockerService.listContainers(showAll);
+
+        // 자가치유 상태 설정
+        containers.forEach(this::setHealingInfo);
 
         long runningCount = containers.stream()
                 .filter(c -> "running".equalsIgnoreCase(c.getState()))
@@ -35,8 +49,30 @@ public class DashboardController {
         model.addAttribute("runningCount", runningCount);
         model.addAttribute("stoppedCount", stoppedCount);
         model.addAttribute("showAll", showAll);
+        model.addAttribute("healingEnabled", selfHealingProperties.isEnabled());
 
         return "dashboard";
+    }
+
+    private void setHealingInfo(ContainerInfo container) {
+        // 라벨에서 설정 확인
+        var labelConfig = labelReader.readHealingConfig(container.getLabels());
+        if (labelConfig.isPresent()) {
+            container.setHealingEnabled(true);
+            container.setMaxRestarts(labelConfig.get().getMaxRestarts());
+        } else {
+            // yml 규칙에서 설정 확인
+            var ruleConfig = ruleMatcher.findMatchingRule(container.getName());
+            if (ruleConfig.isPresent()) {
+                container.setHealingEnabled(true);
+                container.setMaxRestarts(ruleConfig.get().getMaxRestarts());
+            } else {
+                container.setHealingEnabled(false);
+            }
+        }
+
+        // 재시작 횟수 설정
+        container.setRestartCount(restartTracker.getRestartCount(container.getId()));
     }
 
     @GetMapping("/containers/{id}")
@@ -58,5 +94,19 @@ public class DashboardController {
     @ResponseBody
     public String getContainerLogs(@PathVariable String id) {
         return dockerService.getContainerLogs(id);
+    }
+
+    @GetMapping("/healing-logs")
+    public String healingLogs(Model model) {
+        List<HealingEvent> events = healingEventRepository.findAll();
+        model.addAttribute("events", events);
+        model.addAttribute("healingEnabled", selfHealingProperties.isEnabled());
+        return "healing-logs";
+    }
+
+    @GetMapping("/api/healing-logs")
+    @ResponseBody
+    public List<HealingEvent> getHealingLogs() {
+        return healingEventRepository.findAll();
     }
 }

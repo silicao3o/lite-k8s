@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Data
 @Builder
@@ -17,4 +18,5 @@ public class ContainerDeathEvent {
     private String deathReason;
     private String lastLogs;
     private String action; // die, kill, stop, oom
+    private Map<String, String> labels;
 }

@@ -30,6 +30,12 @@
                         </svg>
                         Containers
                     </a>
+                    <a href="/healing-logs" class="nav-item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                        </svg>
+                        Healing Logs
+                    </a>
                 </div>
             </nav>
         </aside>
@@ -55,6 +61,10 @@
                     <div class="label">Stopped</div>
                     <div class="value" th:text="${stoppedCount}">0</div>
                 </div>
+                <div class="stat-card" th:classappend="${healingEnabled} ? 'healing' : ''">
+                    <div class="label">Self Healing</div>
+                    <div class="value" th:text="${healingEnabled} ? 'ON' : 'OFF'">OFF</div>
+                </div>
             </div>
 
             <!-- Container Table -->
@@ -77,6 +87,7 @@
                                 <th>Name</th>
                                 <th>Image</th>
                                 <th>Status</th>
+                                <th>Healing</th>
                                 <th>Container ID</th>
                                 <th>Ports</th>
                             </tr>
@@ -93,6 +104,11 @@
                                     <span class="status-badge"
                                           th:classappend="${container.statusClass}"
                                           th:text="${container.state}">running</span>
+                                </td>
+                                <td>
+                                    <span th:if="${container.healingEnabled}" class="healing-badge enabled"
+                                          th:text="${container.restartCount} + '/' + ${container.maxRestarts}">0/3</span>
+                                    <span th:unless="${container.healingEnabled}" class="healing-badge disabled">-</span>
                                 </td>
                                 <td>
                                     <span class="container-id" th:text="${container.shortId}">abc123</span>

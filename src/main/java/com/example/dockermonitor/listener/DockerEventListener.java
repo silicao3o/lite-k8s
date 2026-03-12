@@ -7,6 +7,7 @@ import com.example.dockermonitor.service.AlertDeduplicationService;
 import com.example.dockermonitor.service.ContainerFilterService;
 import com.example.dockermonitor.service.DockerService;
 import com.example.dockermonitor.service.EmailNotificationService;
+import com.example.dockermonitor.service.SelfHealingService;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.model.Event;
@@ -34,6 +35,7 @@ public class DockerEventListener {
     private final MonitorProperties monitorProperties;
     private final ContainerFilterService containerFilterService;
     private final AlertDeduplicationService deduplicationService;
+    private final SelfHealingService selfHealingService;
 
     private Closeable eventStream;
     private final AtomicInteger retryCount = new AtomicInteger(0);
@@ -97,6 +99,9 @@ public class DockerEventListener {
 
                 // 이메일 알림 전송
                 notificationService.sendAlert(deathEvent);
+
+                // 자가치유 시도
+                selfHealingService.handleContainerDeath(deathEvent);
 
                 log.info("컨테이너 종료 알림 전송 완료: {}", deathEvent.getContainerName());
 

@@ -50,6 +50,44 @@ public class EmailNotificationService {
         }
     }
 
+    @Async
+    public void sendMaxRestartsExceededAlert(String containerName, String containerId, int maxRestarts) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(recipientEmail.split(","));
+            helper.setSubject(String.format("[MAX RESTARTS] %s - 최대 재시작 횟수 초과 (%s)", containerName, serverName));
+            helper.setText(buildMaxRestartsExceededContent(containerName, containerId, maxRestarts), true);
+
+            mailSender.send(message);
+            log.info("최대 재시작 초과 알림 전송 완료: {}", containerName);
+
+        } catch (Exception e) {
+            log.error("이메일 전송 실패: {}", containerName, e);
+        }
+    }
+
+    @Async
+    public void sendRestartFailedAlert(String containerName, String containerId) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(recipientEmail.split(","));
+            helper.setSubject(String.format("[RESTART FAILED] %s - 자가치유 실패 (%s)", containerName, serverName));
+            helper.setText(buildRestartFailedContent(containerName, containerId), true);
+
+            mailSender.send(message);
+            log.info("재시작 실패 알림 전송 완료: {}", containerName);
+
+        } catch (Exception e) {
+            log.error("이메일 전송 실패: {}", containerName, e);
+        }
+    }
+
     private String buildSubject(ContainerDeathEvent event) {
         String emoji = event.isOomKilled() ? "[OOM]" : "[DOWN]";
         return String.format("%s 컨테이너 종료 알림: %s (%s)",
@@ -190,5 +228,98 @@ public class EmailNotificationService {
                 .replace(">", "&gt;")
                 .replace("\"", "&quot;")
                 .replace("'", "&#39;");
+    }
+
+    private String buildMaxRestartsExceededContent(String containerName, String containerId, int maxRestarts) {
+        return String.format("""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+                    .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
+                    .header { background: #dc3545; color: white; padding: 20px; text-align: center; }
+                    .header h1 { margin: 0; font-size: 24px; }
+                    .content { padding: 20px; }
+                    .info-table { width: 100%%; border-collapse: collapse; }
+                    .info-table th { text-align: left; padding: 10px; background: #f8f9fa; border-bottom: 1px solid #dee2e6; width: 30%%; }
+                    .info-table td { padding: 10px; border-bottom: 1px solid #dee2e6; }
+                    .warning-box { background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; padding: 15px; margin-top: 20px; }
+                    .footer { background: #f8f9fa; padding: 15px; text-align: center; color: #6c757d; font-size: 12px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>최대 재시작 횟수 초과</h1>
+                    </div>
+                    <div class="content">
+                        <table class="info-table">
+                            <tr><th>서버</th><td>%s</td></tr>
+                            <tr><th>컨테이너 이름</th><td><strong>%s</strong></td></tr>
+                            <tr><th>컨테이너 ID</th><td><code>%s</code></td></tr>
+                            <tr><th>최대 재시작 횟수</th><td>%d회</td></tr>
+                        </table>
+                        <div class="warning-box">
+                            <strong>주의:</strong> 이 컨테이너는 최대 재시작 횟수에 도달하여 더 이상 자동 재시작되지 않습니다.
+                            수동으로 확인이 필요합니다.
+                        </div>
+                    </div>
+                    <div class="footer">Docker Monitor Service | 자동 생성된 알림입니다</div>
+                </div>
+            </body>
+            </html>
+            """,
+                escapeHtml(serverName),
+                escapeHtml(containerName),
+                escapeHtml(containerId != null ? containerId.substring(0, Math.min(12, containerId.length())) : "N/A"),
+                maxRestarts
+        );
+    }
+
+    private String buildRestartFailedContent(String containerName, String containerId) {
+        return String.format("""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+                    .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
+                    .header { background: #dc3545; color: white; padding: 20px; text-align: center; }
+                    .header h1 { margin: 0; font-size: 24px; }
+                    .content { padding: 20px; }
+                    .info-table { width: 100%%; border-collapse: collapse; }
+                    .info-table th { text-align: left; padding: 10px; background: #f8f9fa; border-bottom: 1px solid #dee2e6; width: 30%%; }
+                    .info-table td { padding: 10px; border-bottom: 1px solid #dee2e6; }
+                    .warning-box { background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; padding: 15px; margin-top: 20px; }
+                    .footer { background: #f8f9fa; padding: 15px; text-align: center; color: #6c757d; font-size: 12px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>자가치유 실패</h1>
+                    </div>
+                    <div class="content">
+                        <table class="info-table">
+                            <tr><th>서버</th><td>%s</td></tr>
+                            <tr><th>컨테이너 이름</th><td><strong>%s</strong></td></tr>
+                            <tr><th>컨테이너 ID</th><td><code>%s</code></td></tr>
+                        </table>
+                        <div class="warning-box">
+                            <strong>주의:</strong> 컨테이너 재시작이 실패했습니다. 수동으로 확인이 필요합니다.
+                        </div>
+                    </div>
+                    <div class="footer">Docker Monitor Service | 자동 생성된 알림입니다</div>
+                </div>
+            </body>
+            </html>
+            """,
+                escapeHtml(serverName),
+                escapeHtml(containerName),
+                escapeHtml(containerId != null ? containerId.substring(0, Math.min(12, containerId.length())) : "N/A")
+        );
     }
 }
