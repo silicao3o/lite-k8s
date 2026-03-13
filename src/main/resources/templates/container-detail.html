@@ -148,8 +148,33 @@
                         Refresh
                     </button>
                 </div>
+
+                <!-- Log Search -->
+                <div class="log-search">
+                    <div class="search-row">
+                        <input type="text" id="searchKeyword" placeholder="Search keyword..." class="search-input">
+                        <select id="logLevel" class="search-select" multiple>
+                            <option value="ERROR">ERROR</option>
+                            <option value="WARN">WARN</option>
+                            <option value="INFO">INFO</option>
+                            <option value="DEBUG">DEBUG</option>
+                        </select>
+                        <button class="search-btn" onclick="searchLogs()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"/>
+                                <path d="M21 21l-4.35-4.35"/>
+                            </svg>
+                            Search
+                        </button>
+                        <button class="clear-btn" onclick="clearSearch()">Clear</button>
+                    </div>
+                    <div id="searchInfo" class="search-info" style="display: none;">
+                        <span id="searchResultCount">0</span> results found
+                    </div>
+                </div>
+
                 <div class="logs-content">
-                    <pre id="logs" th:text="${logs}">Loading logs...</pre>
+                    <pre id="logs" th:utext="${logs}">Loading logs...</pre>
                 </div>
             </div>
         </main>
@@ -157,17 +182,72 @@
 
     <script th:inline="javascript">
         const containerId = [[${container.id}]];
+        let originalLogs = document.getElementById('logs').innerHTML;
 
         function refreshLogs() {
             fetch('/api/containers/' + containerId + '/logs')
                 .then(response => response.text())
                 .then(logs => {
                     document.getElementById('logs').textContent = logs;
+                    originalLogs = logs;
+                    clearSearch();
                 })
                 .catch(err => {
                     console.error('Failed to refresh logs:', err);
                 });
         }
+
+        function searchLogs() {
+            const keyword = document.getElementById('searchKeyword').value;
+            const levelSelect = document.getElementById('logLevel');
+            const selectedLevels = Array.from(levelSelect.selectedOptions).map(opt => opt.value);
+
+            const params = new URLSearchParams();
+            if (keyword) params.append('keyword', keyword);
+            selectedLevels.forEach(level => params.append('levels', level));
+
+            fetch('/api/containers/' + containerId + '/logs/search?' + params.toString())
+                .then(response => response.json())
+                .then(result => {
+                    displaySearchResults(result);
+                })
+                .catch(err => {
+                    console.error('Search failed:', err);
+                });
+        }
+
+        function displaySearchResults(result) {
+            const logsEl = document.getElementById('logs');
+            const searchInfo = document.getElementById('searchInfo');
+            const resultCount = document.getElementById('searchResultCount');
+
+            if (result.entries.length === 0) {
+                logsEl.innerHTML = '<span class="no-results">No matching logs found</span>';
+            } else {
+                const html = result.entries.map(entry => {
+                    const levelClass = 'log-level-' + entry.level.toLowerCase();
+                    return `<span class="${levelClass}">${entry.highlightedMessage}</span>`;
+                }).join('\n');
+                logsEl.innerHTML = html;
+            }
+
+            resultCount.textContent = result.totalCount;
+            searchInfo.style.display = 'block';
+        }
+
+        function clearSearch() {
+            document.getElementById('searchKeyword').value = '';
+            document.getElementById('logLevel').selectedIndex = -1;
+            document.getElementById('logs').innerHTML = originalLogs;
+            document.getElementById('searchInfo').style.display = 'none';
+        }
+
+        // Enter key to search
+        document.getElementById('searchKeyword').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchLogs();
+            }
+        });
     </script>
 </body>
 </html>

@@ -8,8 +8,10 @@ import com.example.dockermonitor.model.ContainerMetrics;
 import com.example.dockermonitor.service.ContainerLabelReader;
 import com.example.dockermonitor.service.DockerService;
 import com.example.dockermonitor.service.HealingRuleMatcher;
+import com.example.dockermonitor.service.LogSearchService;
 import com.example.dockermonitor.service.MetricsCollector;
 import com.example.dockermonitor.service.RestartTracker;
+import com.example.dockermonitor.model.LogSearchResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -31,6 +33,7 @@ public class DashboardController {
     private final RestartTracker restartTracker;
     private final HealingEventRepository healingEventRepository;
     private final MetricsCollector metricsCollector;
+    private final LogSearchService logSearchService;
 
     @GetMapping("/")
     public String dashboard(Model model,
@@ -120,6 +123,28 @@ public class DashboardController {
     @ResponseBody
     public String getContainerLogs(@PathVariable String id) {
         return dockerService.getContainerLogs(id);
+    }
+
+    @GetMapping("/api/containers/{id}/logs/search")
+    @ResponseBody
+    public LogSearchResult searchContainerLogs(
+            @PathVariable String id,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to,
+            @RequestParam(required = false) List<String> levels) {
+
+        java.time.LocalDateTime fromTime = null;
+        java.time.LocalDateTime toTime = null;
+
+        if (from != null && !from.isEmpty()) {
+            fromTime = java.time.LocalDateTime.parse(from);
+        }
+        if (to != null && !to.isEmpty()) {
+            toTime = java.time.LocalDateTime.parse(to);
+        }
+
+        return logSearchService.search(id, keyword, fromTime, toTime, levels);
     }
 
     @GetMapping("/healing-logs")
