@@ -42,13 +42,16 @@ class SelfHealingServiceTest {
     @Mock
     private EmailNotificationService emailNotificationService;
 
+    @Mock
+    private RestartLoopAlertService restartLoopAlertService;
+
     private SelfHealingService selfHealingService;
 
     @BeforeEach
     void setUp() {
         selfHealingService = new SelfHealingService(
                 properties, ruleMatcher, restartTracker, dockerService, labelReader,
-                healingEventRepository, emailNotificationService);
+                healingEventRepository, emailNotificationService, restartLoopAlertService);
     }
 
     private ContainerDeathEvent createDeathEvent(String containerId, String containerName) {

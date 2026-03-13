@@ -88,6 +88,64 @@ public class EmailNotificationService {
         }
     }
 
+    @Async
+    public void sendCpuThresholdAlert(String containerName, String containerId, double currentCpu, double threshold) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(recipientEmail.split(","));
+            helper.setSubject(String.format("[CPU HIGH] %s - CPU 사용률 %.1f%% (%s)", containerName, currentCpu, serverName));
+            helper.setText(buildThresholdAlertContent("CPU", containerName, containerId, currentCpu, threshold), true);
+
+            mailSender.send(message);
+            log.info("CPU 임계치 알림 전송 완료: {} ({}%)", containerName, String.format("%.1f", currentCpu));
+
+        } catch (Exception e) {
+            log.error("이메일 전송 실패: {}", containerName, e);
+        }
+    }
+
+    @Async
+    public void sendMemoryThresholdAlert(String containerName, String containerId, double currentMemory, double threshold) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(recipientEmail.split(","));
+            helper.setSubject(String.format("[MEMORY HIGH] %s - 메모리 사용률 %.1f%% (%s)", containerName, currentMemory, serverName));
+            helper.setText(buildThresholdAlertContent("메모리", containerName, containerId, currentMemory, threshold), true);
+
+            mailSender.send(message);
+            log.info("메모리 임계치 알림 전송 완료: {} ({}%)", containerName, String.format("%.1f", currentMemory));
+
+        } catch (Exception e) {
+            log.error("이메일 전송 실패: {}", containerName, e);
+        }
+    }
+
+    @Async
+    public void sendRestartLoopAlert(String containerName, String containerId, int restartCount, int windowMinutes) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(recipientEmail.split(","));
+            helper.setSubject(String.format("[RESTART LOOP] %s - %d분 내 %d회 재시작 (%s)",
+                    containerName, windowMinutes, restartCount, serverName));
+            helper.setText(buildRestartLoopContent(containerName, containerId, restartCount, windowMinutes), true);
+
+            mailSender.send(message);
+            log.info("재시작 반복 알림 전송 완료: {} ({}회)", containerName, restartCount);
+
+        } catch (Exception e) {
+            log.error("이메일 전송 실패: {}", containerName, e);
+        }
+    }
+
     private String buildSubject(ContainerDeathEvent event) {
         String emoji = event.isOomKilled() ? "[OOM]" : "[DOWN]";
         return String.format("%s 컨테이너 종료 알림: %s (%s)",
@@ -275,6 +333,112 @@ public class EmailNotificationService {
                 escapeHtml(containerName),
                 escapeHtml(containerId != null ? containerId.substring(0, Math.min(12, containerId.length())) : "N/A"),
                 maxRestarts
+        );
+    }
+
+    private String buildThresholdAlertContent(String type, String containerName, String containerId,
+                                                double current, double threshold) {
+        String color = current > threshold * 1.2 ? "#dc3545" : "#ffc107"; // 20% 초과시 빨간색
+        return String.format("""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+                    .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
+                    .header { background: %s; color: white; padding: 20px; text-align: center; }
+                    .header h1 { margin: 0; font-size: 24px; }
+                    .content { padding: 20px; }
+                    .info-table { width: 100%%; border-collapse: collapse; }
+                    .info-table th { text-align: left; padding: 10px; background: #f8f9fa; border-bottom: 1px solid #dee2e6; width: 30%%; }
+                    .info-table td { padding: 10px; border-bottom: 1px solid #dee2e6; }
+                    .metric-box { background: #f8f9fa; border-radius: 8px; padding: 20px; margin-top: 20px; text-align: center; }
+                    .metric-value { font-size: 48px; font-weight: bold; color: %s; }
+                    .metric-label { color: #6c757d; margin-top: 5px; }
+                    .footer { background: #f8f9fa; padding: 15px; text-align: center; color: #6c757d; font-size: 12px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>%s 사용률 경고</h1>
+                    </div>
+                    <div class="content">
+                        <table class="info-table">
+                            <tr><th>서버</th><td>%s</td></tr>
+                            <tr><th>컨테이너 이름</th><td><strong>%s</strong></td></tr>
+                            <tr><th>컨테이너 ID</th><td><code>%s</code></td></tr>
+                            <tr><th>임계치</th><td>%.1f%%</td></tr>
+                        </table>
+                        <div class="metric-box">
+                            <div class="metric-value">%.1f%%</div>
+                            <div class="metric-label">현재 %s 사용률</div>
+                        </div>
+                    </div>
+                    <div class="footer">Docker Monitor Service | 자동 생성된 알림입니다</div>
+                </div>
+            </body>
+            </html>
+            """,
+                color,
+                color,
+                type,
+                escapeHtml(serverName),
+                escapeHtml(containerName),
+                escapeHtml(containerId != null ? containerId.substring(0, Math.min(12, containerId.length())) : "N/A"),
+                threshold,
+                current,
+                type
+        );
+    }
+
+    private String buildRestartLoopContent(String containerName, String containerId, int restartCount, int windowMinutes) {
+        return String.format("""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+                    .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
+                    .header { background: #dc3545; color: white; padding: 20px; text-align: center; }
+                    .header h1 { margin: 0; font-size: 24px; }
+                    .content { padding: 20px; }
+                    .info-table { width: 100%%; border-collapse: collapse; }
+                    .info-table th { text-align: left; padding: 10px; background: #f8f9fa; border-bottom: 1px solid #dee2e6; width: 30%%; }
+                    .info-table td { padding: 10px; border-bottom: 1px solid #dee2e6; }
+                    .warning-box { background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; padding: 15px; margin-top: 20px; }
+                    .footer { background: #f8f9fa; padding: 15px; text-align: center; color: #6c757d; font-size: 12px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>재시작 반복 감지</h1>
+                    </div>
+                    <div class="content">
+                        <table class="info-table">
+                            <tr><th>서버</th><td>%s</td></tr>
+                            <tr><th>컨테이너 이름</th><td><strong>%s</strong></td></tr>
+                            <tr><th>컨테이너 ID</th><td><code>%s</code></td></tr>
+                            <tr><th>재시작 횟수</th><td><strong>%d회</strong> (최근 %d분 내)</td></tr>
+                        </table>
+                        <div class="warning-box">
+                            <strong>주의:</strong> 컨테이너가 짧은 시간 내에 여러 번 재시작되고 있습니다.
+                            애플리케이션 오류나 리소스 문제를 점검해 주세요.
+                        </div>
+                    </div>
+                    <div class="footer">Docker Monitor Service | 자동 생성된 알림입니다</div>
+                </div>
+            </body>
+            </html>
+            """,
+                escapeHtml(serverName),
+                escapeHtml(containerName),
+                escapeHtml(containerId != null ? containerId.substring(0, Math.min(12, containerId.length())) : "N/A"),
+                restartCount,
+                windowMinutes
         );
     }
 

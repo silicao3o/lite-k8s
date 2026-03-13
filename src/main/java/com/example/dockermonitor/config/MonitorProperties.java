@@ -22,6 +22,7 @@ public class MonitorProperties {
     private Filter filter = new Filter();
     private Deduplication deduplication = new Deduplication();
     private Metrics metrics = new Metrics();
+    private RestartLoop restartLoop = new RestartLoop();
 
     @Getter
     @Setter
@@ -78,5 +79,22 @@ public class MonitorProperties {
         private boolean enabled = true;
         // 메트릭 수집 주기 (초)
         private int collectionIntervalSeconds = 15;
+        // 임계치 알림 활성화
+        private boolean thresholdAlertEnabled = true;
+        // CPU 임계치 (%)
+        private double cpuThresholdPercent = 80.0;
+        // 메모리 임계치 (%)
+        private double memoryThresholdPercent = 90.0;
+    }
+
+    @Getter
+    @Setter
+    public static class RestartLoop {
+        // 재시작 반복 알림 활성화
+        private boolean enabled = true;
+        // 임계 횟수 (이 횟수 이상 재시작하면 알림)
+        private int thresholdCount = 3;
+        // 시간 윈도우 (분)
+        private int windowMinutes = 5;
     }
 }

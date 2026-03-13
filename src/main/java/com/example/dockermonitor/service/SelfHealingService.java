@@ -22,6 +22,7 @@ public class SelfHealingService {
     private final ContainerLabelReader labelReader;
     private final HealingEventRepository healingEventRepository;
     private final EmailNotificationService emailNotificationService;
+    private final RestartLoopAlertService restartLoopAlertService;
 
     public void handleContainerDeath(ContainerDeathEvent event) {
         if (!properties.isEnabled()) {
@@ -70,6 +71,8 @@ public class SelfHealingService {
             restartTracker.recordRestart(containerId);
             log.info("자가치유 완료: {}", event.getContainerName());
             saveHealingEvent(event, true, "자가치유 성공");
+            // 재시작 반복 알림 체크
+            restartLoopAlertService.checkAndAlert(containerId, event.getContainerName());
         } else {
             log.error("자가치유 실패: {}", event.getContainerName());
             saveHealingEvent(event, false, "자가치유 실패");

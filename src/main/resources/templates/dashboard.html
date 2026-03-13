@@ -94,7 +94,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr th:each="container : ${containers}">
+                            <tr th:each="container : ${containers}" th:data-container-id="${container.id}">
                                 <td>
                                     <a th:href="@{/containers/{id}(id=${container.id})}"
                                        class="container-link"
@@ -106,7 +106,7 @@
                                           th:classappend="${container.statusClass}"
                                           th:text="${container.state}">running</span>
                                 </td>
-                                <td>
+                                <td class="cpu-cell">
                                     <span th:if="${container.state == 'running'}"
                                           class="metric-value"
                                           th:classappend="${container.cpuPercent > 80} ? ' warning' : ''"
@@ -145,5 +145,111 @@
             </div>
         </main>
     </div>
+
+    <script>
+        // WebSocket 실시간 갱신
+        let ws;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = protocol + '//' + window.location.host + '/ws/containers';
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = function() {
+                console.log('WebSocket 연결됨');
+                reconnectAttempts = 0;
+                showConnectionStatus(true);
+            };
+
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                if (data.type === 'update' || data.type === 'initial') {
+                    updateDashboard(data.containers);
+                }
+            };
+
+            ws.onclose = function() {
+                console.log('WebSocket 연결 종료');
+                showConnectionStatus(false);
+                attemptReconnect();
+            };
+
+            ws.onerror = function(error) {
+                console.error('WebSocket 오류:', error);
+            };
+        }
+
+        function attemptReconnect() {
+            if (reconnectAttempts < maxReconnectAttempts) {
+                reconnectAttempts++;
+                console.log('재연결 시도 ' + reconnectAttempts + '/' + maxReconnectAttempts);
+                setTimeout(connectWebSocket, 3000 * reconnectAttempts);
+            }
+        }
+
+        function showConnectionStatus(connected) {
+            // 연결 상태 표시 (선택적)
+            const statusEl = document.getElementById('ws-status');
+            if (statusEl) {
+                statusEl.textContent = connected ? 'Live' : 'Offline';
+                statusEl.className = connected ? 'ws-status connected' : 'ws-status disconnected';
+            }
+        }
+
+        function updateDashboard(containers) {
+            // 통계 업데이트
+            const runningCount = containers.filter(c => c.state === 'running').length;
+            const stoppedCount = containers.filter(c => c.state === 'exited').length;
+
+            const runningEl = document.querySelector('.stat-card:nth-child(2) .stat-value');
+            const stoppedEl = document.querySelector('.stat-card:nth-child(3) .stat-value');
+            const totalEl = document.querySelector('.stat-card:nth-child(1) .stat-value');
+
+            if (totalEl) totalEl.textContent = containers.length;
+            if (runningEl) runningEl.textContent = runningCount;
+            if (stoppedEl) stoppedEl.textContent = stoppedCount;
+
+            // 테이블 업데이트
+            const tbody = document.querySelector('table tbody');
+            if (!tbody) return;
+
+            containers.forEach(container => {
+                const row = document.querySelector(`tr[data-container-id="${container.id}"]`);
+                if (row) {
+                    // CPU 업데이트
+                    const cpuCell = row.querySelector('.cpu-cell');
+                    if (cpuCell && container.state === 'running') {
+                        cpuCell.textContent = container.cpuPercent.toFixed(1) + '%';
+                        cpuCell.className = 'cpu-cell metric-value' +
+                            (container.cpuPercent > 80 ? ' danger' : container.cpuPercent > 50 ? ' warning' : '');
+                    }
+
+                    // 메모리 업데이트
+                    const memoryCell = row.querySelector('.memory-cell');
+                    if (memoryCell && container.state === 'running') {
+                        const memDisplay = memoryCell.querySelector('.metric-value');
+                        if (memDisplay) {
+                            memDisplay.textContent = container.memoryPercent.toFixed(1) + '%';
+                            memDisplay.className = 'metric-value' +
+                                (container.memoryPercent > 90 ? ' danger' : container.memoryPercent > 70 ? ' warning' : '');
+                        }
+                    }
+
+                    // 상태 업데이트
+                    const statusBadge = row.querySelector('.status-badge');
+                    if (statusBadge) {
+                        statusBadge.textContent = container.state;
+                        statusBadge.className = 'status-badge ' + container.state;
+                    }
+                }
+            });
+        }
+
+        // 페이지 로드 시 WebSocket 연결
+        document.addEventListener('DOMContentLoaded', connectWebSocket);
+    </script>
 </body>
 </html>

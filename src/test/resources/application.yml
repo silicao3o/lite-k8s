@@ -17,6 +17,8 @@ docker:
       email:
         to: test@example.com
         from: docker-monitor@test.com
+    security:
+      enabled: false
 
 logging:
   level:
