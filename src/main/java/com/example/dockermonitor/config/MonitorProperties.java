@@ -21,6 +21,7 @@ public class MonitorProperties {
     private Notification notification = new Notification();
     private Filter filter = new Filter();
     private Deduplication deduplication = new Deduplication();
+    private Metrics metrics = new Metrics();
 
     @Getter
     @Setter
@@ -68,5 +69,14 @@ public class MonitorProperties {
         private boolean enabled = true;
         // 중복 방지 시간 창 (초)
         private int windowSeconds = 60;
+    }
+
+    @Getter
+    @Setter
+    public static class Metrics {
+        // 메트릭 수집 활성화
+        private boolean enabled = true;
+        // 메트릭 수집 주기 (초)
+        private int collectionIntervalSeconds = 15;
     }
 }
