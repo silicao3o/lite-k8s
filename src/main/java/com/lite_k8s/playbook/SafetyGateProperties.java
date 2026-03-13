@@ -29,6 +29,26 @@ public class SafetyGateProperties {
     private ServiceCriticality defaultCriticality = ServiceCriticality.NORMAL;
 
     /**
+     * 시간대별 위험도 가중치 활성화 여부
+     */
+    private boolean timeBasedElevationEnabled = false;
+
+    /**
+     * 업무 시간 시작 (HH:mm 형식, 기본 09:00)
+     */
+    private String businessStartTime = "09:00";
+
+    /**
+     * 업무 시간 종료 (HH:mm 형식, 기본 18:00)
+     */
+    private String businessEndTime = "18:00";
+
+    /**
+     * 고위험 조치 자동 차단 활성화 여부
+     */
+    private boolean highRiskAutoBlock = false;
+
+    /**
      * 서비스 중요도 규칙 목록
      */
     private List<ServiceCriticalityConfig> serviceCriticality = new ArrayList<>();

@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalTime;
 import java.util.Map;
 
 /**
@@ -19,6 +20,7 @@ public class SafetyGate {
     private final SafetyGateProperties properties;
     private final RiskAssessor riskAssessor;
     private final ServiceCriticalityResolver criticalityResolver;
+    private final TimeBasedRiskElevator timeBasedRiskElevator;
 
     /**
      * Playbook 실행 허용 여부 평가
@@ -29,6 +31,13 @@ public class SafetyGate {
      * @return 평가 결과
      */
     public SafetyGateResult evaluate(Playbook playbook, String containerName, Map<String, String> labels) {
+        return evaluateAt(playbook, containerName, labels, LocalTime.now());
+    }
+
+    /**
+     * 지정된 시간 기준으로 Playbook 실행 허용 여부 평가
+     */
+    public SafetyGateResult evaluateAt(Playbook playbook, String containerName, Map<String, String> labels, LocalTime time) {
         // Safety Gate가 비활성화된 경우 모두 허용
         if (!properties.isEnabled()) {
             log.debug("Safety Gate disabled, allowing playbook: {}", playbook.getName());
@@ -41,8 +50,13 @@ public class SafetyGate {
         // 최종 위험도 산정
         RiskLevel finalRisk = riskAssessor.assessFinalRisk(playbook, criticality);
 
-        log.info("Safety Gate evaluation - Playbook: {}, Container: {}, Criticality: {}, Risk: {}",
-                playbook.getName(), containerName, criticality, finalRisk);
+        // 시간대별 위험도 가중치 적용
+        if (properties.isTimeBasedElevationEnabled()) {
+            finalRisk = timeBasedRiskElevator.elevate(finalRisk, time);
+        }
+
+        log.info("Safety Gate evaluation - Playbook: {}, Container: {}, Criticality: {}, Risk: {}, Time: {}",
+                playbook.getName(), containerName, criticality, finalRisk, time);
 
         // CRITICAL 위험도는 항상 차단 (수동 승인 필요)
         if (finalRisk == RiskLevel.CRITICAL) {
@@ -50,6 +64,15 @@ public class SafetyGate {
                     finalRisk,
                     criticality,
                     "CRITICAL risk level requires manual approval"
+            );
+        }
+
+        // 고위험 조치 자동 차단 활성화 시 HIGH 위험도도 차단
+        if (properties.isHighRiskAutoBlock() && finalRisk == RiskLevel.HIGH) {
+            return SafetyGateResult.blocked(
+                    finalRisk,
+                    criticality,
+                    "HIGH risk action blocked by auto-block policy"
             );
         }
 
