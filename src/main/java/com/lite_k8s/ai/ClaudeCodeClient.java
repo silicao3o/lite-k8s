@@ -205,6 +205,53 @@ public class ClaudeCodeClient {
         return String.format("%.1f GB", bytes / (1024.0 * 1024 * 1024));
     }
 
+    /**
+     * 커스텀 프롬프트로 AI 분석 요청
+     */
+    public ClaudeResponse analyzeWithPrompt(String prompt) {
+        if (!enabled) {
+            log.debug("AI analysis disabled");
+            return ClaudeResponse.error("AI analysis is disabled");
+        }
+
+        try {
+            String[] command = buildCommand(prompt);
+
+            ProcessBuilder processBuilder = new ProcessBuilder(command);
+            processBuilder.redirectErrorStream(true);
+
+            Process process = processBuilder.start();
+
+            StringBuilder output = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line).append("\n");
+                }
+            }
+
+            boolean finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                log.warn("Claude Code process timed out");
+                return ClaudeResponse.error("Process timed out after " + timeoutSeconds + " seconds");
+            }
+
+            int exitCode = process.exitValue();
+            if (exitCode != 0) {
+                log.warn("Claude Code process exited with code: {}", exitCode);
+                return ClaudeResponse.error("Process exited with code: " + exitCode);
+            }
+
+            return parseResponse(output.toString().trim());
+
+        } catch (Exception e) {
+            log.error("Failed to execute Claude Code", e);
+            return ClaudeResponse.error("Execution failed: " + e.getMessage());
+        }
+    }
+
     public int getTimeoutSeconds() {
         return timeoutSeconds;
     }
