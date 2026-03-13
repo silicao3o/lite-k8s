@@ -77,6 +77,32 @@ class HealingEventRepositoryTest {
         assertThat(repository.findAll()).hasSize(100);
     }
 
+    @Test
+    @DisplayName("성공한 이벤트만 필터링할 수 있다")
+    void shouldFindBySuccessTrue() {
+        repository.save(createEvent("abc123", "web-1", true));
+        repository.save(createEvent("def456", "web-2", false));
+        repository.save(createEvent("ghi789", "web-3", true));
+
+        List<HealingEvent> events = repository.findBySuccess(true);
+
+        assertThat(events).hasSize(2);
+        assertThat(events).allMatch(HealingEvent::isSuccess);
+    }
+
+    @Test
+    @DisplayName("실패한 이벤트만 필터링할 수 있다")
+    void shouldFindBySuccessFalse() {
+        repository.save(createEvent("abc123", "web-1", true));
+        repository.save(createEvent("def456", "web-2", false));
+        repository.save(createEvent("ghi789", "web-3", false));
+
+        List<HealingEvent> events = repository.findBySuccess(false);
+
+        assertThat(events).hasSize(2);
+        assertThat(events).noneMatch(HealingEvent::isSuccess);
+    }
+
     private HealingEvent createEvent(String containerId, String containerName, boolean success) {
         return HealingEvent.builder()
                 .containerId(containerId)

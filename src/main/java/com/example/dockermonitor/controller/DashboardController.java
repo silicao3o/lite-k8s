@@ -82,10 +82,13 @@ public class DashboardController {
             return "redirect:/";
         }
 
+        setHealingInfo(container);
         String logs = dockerService.getContainerLogs(id);
+        List<HealingEvent> healingEvents = healingEventRepository.findByContainerId(id);
 
         model.addAttribute("container", container);
         model.addAttribute("logs", logs);
+        model.addAttribute("healingEvents", healingEvents);
 
         return "container-detail";
     }
@@ -97,10 +100,17 @@ public class DashboardController {
     }
 
     @GetMapping("/healing-logs")
-    public String healingLogs(Model model) {
-        List<HealingEvent> events = healingEventRepository.findAll();
+    public String healingLogs(Model model,
+                              @RequestParam(required = false) Boolean success) {
+        List<HealingEvent> events;
+        if (success == null) {
+            events = healingEventRepository.findAll();
+        } else {
+            events = healingEventRepository.findBySuccess(success);
+        }
         model.addAttribute("events", events);
         model.addAttribute("healingEnabled", selfHealingProperties.isEnabled());
+        model.addAttribute("successFilter", success);
         return "healing-logs";
     }
 

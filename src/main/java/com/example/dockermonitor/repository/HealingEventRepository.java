@@ -33,4 +33,10 @@ public class HealingEventRepository {
                 .filter(e -> e.getContainerId().equals(containerId))
                 .collect(Collectors.toList());
     }
+
+    public List<HealingEvent> findBySuccess(boolean success) {
+        return events.stream()
+                .filter(e -> e.isSuccess() == success)
+                .collect(Collectors.toList());
+    }
 }

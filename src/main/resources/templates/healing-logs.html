@@ -59,6 +59,13 @@
                 </div>
             </div>
 
+            <!-- Filter Buttons -->
+            <div class="filter-bar">
+                <a href="/healing-logs" class="filter-btn" th:classappend="${successFilter == null} ? 'active' : ''">All</a>
+                <a href="/healing-logs?success=true" class="filter-btn" th:classappend="${successFilter != null && successFilter} ? 'active' : ''">Success</a>
+                <a href="/healing-logs?success=false" class="filter-btn" th:classappend="${successFilter != null && !successFilter} ? 'active' : ''">Failed</a>
+            </div>
+
             <!-- Events Table -->
             <div class="table-card">
                 <div class="table-header">

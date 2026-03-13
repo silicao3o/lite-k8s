@@ -86,6 +86,56 @@
                 </div>
             </div>
 
+            <!-- Self Healing Info -->
+            <div class="info-card" th:if="${container.healingEnabled}">
+                <h4>Self Healing</h4>
+                <div class="info-row">
+                    <span class="info-label">Status</span>
+                    <span class="info-value">
+                        <span class="status-badge running">Enabled</span>
+                    </span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Max Restarts</span>
+                    <span class="info-value" th:text="${container.maxRestarts}">3</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Current Restarts</span>
+                    <span class="info-value" th:text="${container.restartCount}">0</span>
+                </div>
+            </div>
+
+            <!-- Healing History -->
+            <div class="table-card" th:if="${!healingEvents.isEmpty()}">
+                <div class="table-header">
+                    <h3>Self Healing History</h3>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Status</th>
+                                <th>Restart #</th>
+                                <th>Message</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="event : ${healingEvents}">
+                                <td th:text="${#temporals.format(event.timestamp, 'yyyy-MM-dd HH:mm:ss')}">2024-01-01 12:00:00</td>
+                                <td>
+                                    <span class="status-badge"
+                                          th:classappend="${event.success} ? 'running' : 'exited'"
+                                          th:text="${event.success} ? 'SUCCESS' : 'FAILED'">SUCCESS</span>
+                                </td>
+                                <td th:text="${event.restartCount}">1</td>
+                                <td th:text="${event.message}">Message</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Logs -->
             <div class="logs-card">
                 <div class="logs-header">
