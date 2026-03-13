@@ -25,6 +25,34 @@ public class ContainerInfo {
     private int restartCount;
     private int maxRestarts;
 
+    // 메트릭 필드
+    private double cpuPercent;
+    private long memoryUsage;
+    private long memoryLimit;
+    private double memoryPercent;
+    private long networkRxBytes;
+    private long networkTxBytes;
+
+    public String getMemoryDisplay() {
+        if (memoryLimit <= 0) return "-";
+        return formatBytes(memoryUsage) + " / " + formatBytes(memoryLimit);
+    }
+
+    public String getCpuDisplay() {
+        return String.format("%.1f%%", cpuPercent);
+    }
+
+    public String getMemoryPercentDisplay() {
+        return String.format("%.1f%%", memoryPercent);
+    }
+
+    private String formatBytes(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
+        if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024));
+        return String.format("%.1f GB", bytes / (1024.0 * 1024 * 1024));
+    }
+
     public String getStatusClass() {
         if (state == null) return "unknown";
         return switch (state.toLowerCase()) {

@@ -4,9 +4,11 @@ import com.example.dockermonitor.config.SelfHealingProperties;
 import com.example.dockermonitor.model.ContainerInfo;
 import com.example.dockermonitor.model.HealingEvent;
 import com.example.dockermonitor.repository.HealingEventRepository;
+import com.example.dockermonitor.model.ContainerMetrics;
 import com.example.dockermonitor.service.ContainerLabelReader;
 import com.example.dockermonitor.service.DockerService;
 import com.example.dockermonitor.service.HealingRuleMatcher;
+import com.example.dockermonitor.service.MetricsCollector;
 import com.example.dockermonitor.service.RestartTracker;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -28,14 +30,15 @@ public class DashboardController {
     private final HealingRuleMatcher ruleMatcher;
     private final RestartTracker restartTracker;
     private final HealingEventRepository healingEventRepository;
+    private final MetricsCollector metricsCollector;
 
     @GetMapping("/")
     public String dashboard(Model model,
                            @RequestParam(defaultValue = "true") boolean showAll) {
         List<ContainerInfo> containers = dockerService.listContainers(showAll);
 
-        // 자가치유 상태 설정
-        containers.forEach(this::setHealingInfo);
+        // 자가치유 상태 및 메트릭 설정
+        containers.forEach(this::setContainerInfo);
 
         long runningCount = containers.stream()
                 .filter(c -> "running".equalsIgnoreCase(c.getState()))
@@ -52,6 +55,26 @@ public class DashboardController {
         model.addAttribute("healingEnabled", selfHealingProperties.isEnabled());
 
         return "dashboard";
+    }
+
+    private void setContainerInfo(ContainerInfo container) {
+        setHealingInfo(container);
+        setMetrics(container);
+    }
+
+    private void setMetrics(ContainerInfo container) {
+        if (!"running".equalsIgnoreCase(container.getState())) {
+            return;
+        }
+        metricsCollector.collectMetrics(container.getId(), container.getName())
+                .ifPresent(metrics -> {
+                    container.setCpuPercent(metrics.getCpuPercent());
+                    container.setMemoryUsage(metrics.getMemoryUsage());
+                    container.setMemoryLimit(metrics.getMemoryLimit());
+                    container.setMemoryPercent(metrics.getMemoryPercent());
+                    container.setNetworkRxBytes(metrics.getNetworkRxBytes());
+                    container.setNetworkTxBytes(metrics.getNetworkTxBytes());
+                });
     }
 
     private void setHealingInfo(ContainerInfo container) {

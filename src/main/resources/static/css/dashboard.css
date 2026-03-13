@@ -620,3 +620,29 @@ tbody tr:last-child td {
 .refresh-btn:hover {
     background-color: var(--accent-blue-hover);
 }
+
+/* Metrics */
+.metric-value {
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+.metric-value.warning {
+    color: var(--status-warning);
+}
+
+.metric-value.muted {
+    color: var(--text-muted);
+}
+
+.memory-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.metric-detail {
+    font-size: 11px;
+    color: var(--text-muted);
+}

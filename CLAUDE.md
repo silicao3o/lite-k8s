@@ -74,13 +74,31 @@ Follow this process precisely, always prioritizing clean, well-tested code over 
 
 Always write one test at a time, make it run, then improve structure. Always run all the tests (except long-running tests) each time.
 
-# POST-IMPLEMENTATION CHECKLIST
+# POST-IMPLEMENTATION CHECKLIST (필수)
 
-기능 구현이 완료되면 반드시 다음 작업들을 순서대로 수행한다:
+**중요: 기능 구현이 완료되면 다음 기능으로 넘어가기 전에 반드시 이 체크리스트를 수행해야 한다.**
 
-1. **plan.md 업데이트** - 완료된 항목에 [x] 체크
-2. **README.md 업데이트** - 새로운 기능 설명 추가
-3. **git commit** - 의미 있는 커밋 메시지와 함께 커밋
-4. **git push** - 원격 저장소에 푸시
+## 수행 순서
 
-이 체크리스트는 모든 기능 구현 후 필수적으로 수행해야 한다.
+1. **plan.md 업데이트**
+   - 완료된 항목에 [x] 체크
+   - 진행률 업데이트
+
+2. **README.md 업데이트**
+   - 새로운 기능 설명 추가
+   - 테스트 개수 업데이트
+   - 설정 옵션 추가 (필요 시)
+
+3. **git commit**
+   - 모든 테스트 통과 확인
+   - 의미 있는 커밋 메시지 작성
+   - Co-Authored-By 포함
+
+4. **git push**
+   - 원격 저장소에 푸시
+
+## 주의사항
+
+- 이 체크리스트를 건너뛰고 다음 기능 구현으로 넘어가면 안 된다
+- 사용자가 "다음 기능 구현해줘"라고 해도 먼저 이 체크리스트를 완료해야 한다
+- 체크리스트 완료 후 사용자에게 완료 사실을 알린다

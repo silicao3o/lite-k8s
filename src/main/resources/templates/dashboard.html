@@ -87,9 +87,10 @@
                                 <th>Name</th>
                                 <th>Image</th>
                                 <th>Status</th>
+                                <th>CPU</th>
+                                <th>Memory</th>
                                 <th>Healing</th>
                                 <th>Container ID</th>
-                                <th>Ports</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -106,20 +107,28 @@
                                           th:text="${container.state}">running</span>
                                 </td>
                                 <td>
+                                    <span th:if="${container.state == 'running'}"
+                                          class="metric-value"
+                                          th:classappend="${container.cpuPercent > 80} ? ' warning' : ''"
+                                          th:text="${container.cpuDisplay}">0.0%</span>
+                                    <span th:unless="${container.state == 'running'}" class="metric-value muted">-</span>
+                                </td>
+                                <td>
+                                    <div th:if="${container.state == 'running'}" class="memory-cell">
+                                        <span class="metric-value"
+                                              th:classappend="${container.memoryPercent > 80} ? ' warning' : ''"
+                                              th:text="${container.memoryPercentDisplay}">0.0%</span>
+                                        <span class="metric-detail" th:text="${container.memoryDisplay}">0 MB / 0 MB</span>
+                                    </div>
+                                    <span th:unless="${container.state == 'running'}" class="metric-value muted">-</span>
+                                </td>
+                                <td>
                                     <span th:if="${container.healingEnabled}" class="healing-badge enabled"
                                           th:text="${container.restartCount} + '/' + ${container.maxRestarts}">0/3</span>
                                     <span th:unless="${container.healingEnabled}" class="healing-badge disabled">-</span>
                                 </td>
                                 <td>
                                     <span class="container-id" th:text="${container.shortId}">abc123</span>
-                                </td>
-                                <td>
-                                    <div class="port-list">
-                                        <span th:if="${container.ports.isEmpty()}" class="port-badge">-</span>
-                                        <span th:each="port : ${container.ports}"
-                                              class="port-badge"
-                                              th:text="${port.displayString}">8080:80/tcp</span>
-                                    </div>
                                 </td>
                             </tr>
                         </tbody>
