@@ -93,7 +93,7 @@ spring-shell.log
 *.tmp
 *.bak
 
-md
+# Documentation (private)
 plan.md
-Docker_AI_Monitoring_PRD_v2.md
 memory.md
+*PRD*.md
