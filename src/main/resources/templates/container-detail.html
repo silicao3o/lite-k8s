@@ -168,6 +168,15 @@
                         </button>
                         <button class="clear-btn" onclick="clearSearch()">Clear</button>
                     </div>
+                    <div class="search-row time-range-row">
+                        <label class="time-label">From:</label>
+                        <input type="datetime-local" id="fromTime" class="time-input">
+                        <label class="time-label">To:</label>
+                        <input type="datetime-local" id="toTime" class="time-input">
+                        <button class="preset-btn" onclick="setTimePreset('1h')">1h</button>
+                        <button class="preset-btn" onclick="setTimePreset('6h')">6h</button>
+                        <button class="preset-btn" onclick="setTimePreset('24h')">24h</button>
+                    </div>
                     <div id="searchInfo" class="search-info" style="display: none;">
                         <span id="searchResultCount">0</span> results found
                     </div>
@@ -201,10 +210,14 @@
             const keyword = document.getElementById('searchKeyword').value;
             const levelSelect = document.getElementById('logLevel');
             const selectedLevels = Array.from(levelSelect.selectedOptions).map(opt => opt.value);
+            const fromTime = document.getElementById('fromTime').value;
+            const toTime = document.getElementById('toTime').value;
 
             const params = new URLSearchParams();
             if (keyword) params.append('keyword', keyword);
             selectedLevels.forEach(level => params.append('levels', level));
+            if (fromTime) params.append('from', fromTime);
+            if (toTime) params.append('to', toTime);
 
             fetch('/api/containers/' + containerId + '/logs/search?' + params.toString())
                 .then(response => response.json())
@@ -214,6 +227,31 @@
                 .catch(err => {
                     console.error('Search failed:', err);
                 });
+        }
+
+        function setTimePreset(preset) {
+            const now = new Date();
+            let fromDate = new Date();
+
+            switch(preset) {
+                case '1h':
+                    fromDate.setHours(now.getHours() - 1);
+                    break;
+                case '6h':
+                    fromDate.setHours(now.getHours() - 6);
+                    break;
+                case '24h':
+                    fromDate.setDate(now.getDate() - 1);
+                    break;
+            }
+
+            document.getElementById('fromTime').value = formatDateTime(fromDate);
+            document.getElementById('toTime').value = formatDateTime(now);
+            searchLogs();
+        }
+
+        function formatDateTime(date) {
+            return date.toISOString().slice(0, 16);
         }
 
         function displaySearchResults(result) {
@@ -238,6 +276,8 @@
         function clearSearch() {
             document.getElementById('searchKeyword').value = '';
             document.getElementById('logLevel').selectedIndex = -1;
+            document.getElementById('fromTime').value = '';
+            document.getElementById('toTime').value = '';
             document.getElementById('logs').innerHTML = originalLogs;
             document.getElementById('searchInfo').style.display = 'none';
         }

@@ -761,3 +761,45 @@ mark {
     padding: 1px 3px;
     border-radius: 2px;
 }
+
+/* Time Range Filter */
+.time-range-row {
+    margin-top: 12px;
+}
+
+.time-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-right: 4px;
+}
+
+.time-input {
+    padding: 6px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 13px;
+}
+
+.time-input:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+}
+
+.preset-btn {
+    padding: 6px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.preset-btn:hover {
+    background-color: var(--accent-blue);
+    border-color: var(--accent-blue);
+    color: white;
+}
