@@ -92,3 +92,8 @@ spring-shell.log
 .project
 *.tmp
 *.bak
+
+md
+plan.md
+Docker_AI_Monitoring_PRD_v2.md
+memory.md

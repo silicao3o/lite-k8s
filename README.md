@@ -482,6 +482,3 @@ docker run -m 100m --memory-swap 100m your-image
 3. 최대 재시작 횟수에 도달하지 않았는지 확인
 4. 라벨에 `self-healing.enabled: "false"`가 설정되어 있는지 확인
 
-## 라이선스
-
-MIT License
