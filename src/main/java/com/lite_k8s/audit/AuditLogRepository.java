@@ -101,6 +101,33 @@ public class AuditLogRepository {
     }
 
     /**
+     * 지정 시간 이전 로그 조회 (보존 정책용)
+     */
+    public List<AuditLog> findOlderThan(LocalDateTime cutoff) {
+        return store.values().stream()
+                .filter(log -> log.getTimestamp().isBefore(cutoff))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 지정 시간 이전 로그 삭제 (보존 정책용 - 시스템 전용)
+     *
+     * 참고: 일반적인 delete는 제공하지 않음 (Append-Only)
+     * 이 메서드는 보존 정책 스케줄러에서만 사용
+     *
+     * @return 삭제된 로그 수
+     */
+    public int deleteOlderThan(LocalDateTime cutoff) {
+        List<String> toDelete = store.values().stream()
+                .filter(log -> log.getTimestamp().isBefore(cutoff))
+                .map(AuditLog::getId)
+                .collect(Collectors.toList());
+
+        toDelete.forEach(store::remove);
+        return toDelete.size();
+    }
+
+    /**
      * 전체 삭제 (테스트용)
      */
     public void clear() {

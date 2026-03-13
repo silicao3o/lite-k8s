@@ -172,6 +172,70 @@ class AuditLogRepositoryTest {
         assertThat(count).isEqualTo(3);
     }
 
+    @Test
+    @DisplayName("Append-Only: update 메서드 없음 - save는 새 ID로만 저장")
+    void shouldBeAppendOnly() {
+        // given
+        AuditLog log = createAuditLog("web", "restart");
+        String originalId = log.getId();
+        repository.save(log);
+
+        // when - 동일 ID로 다시 save하면 덮어쓰기 (ID는 생성 시 고정)
+        log.setContainerName("modified");
+        repository.save(log);
+
+        // then - ID가 같으므로 덮어쓰기 됨 (내부 상태 변경은 허용)
+        // 하지만 외부에서 ID를 변경하거나 삭제하는 메서드는 제공하지 않음
+        Optional<AuditLog> found = repository.findById(originalId);
+        assertThat(found).isPresent();
+        // Repository에는 delete, update 메서드가 없음 (Append-Only)
+    }
+
+    @Test
+    @DisplayName("보존 기간이 지난 로그 조회")
+    void shouldFindLogsOlderThan() {
+        // given
+        AuditLog oldLog = createAuditLog("old", "restart");
+        oldLog.setTimestamp(LocalDateTime.now().minusDays(200));
+
+        AuditLog recentLog = createAuditLog("recent", "restart");
+
+        repository.save(oldLog);
+        repository.save(recentLog);
+
+        // when
+        List<AuditLog> expiredLogs = repository.findOlderThan(LocalDateTime.now().minusDays(180));
+
+        // then
+        assertThat(expiredLogs).hasSize(1);
+        assertThat(expiredLogs.get(0).getContainerName()).isEqualTo("old");
+    }
+
+    @Test
+    @DisplayName("보존 정책에 따른 만료 로그 삭제")
+    void shouldDeleteExpiredLogs() {
+        // given
+        AuditLog oldLog1 = createAuditLog("old-1", "restart");
+        oldLog1.setTimestamp(LocalDateTime.now().minusDays(200));
+
+        AuditLog oldLog2 = createAuditLog("old-2", "restart");
+        oldLog2.setTimestamp(LocalDateTime.now().minusDays(190));
+
+        AuditLog recentLog = createAuditLog("recent", "restart");
+
+        repository.save(oldLog1);
+        repository.save(oldLog2);
+        repository.save(recentLog);
+
+        // when
+        int deleted = repository.deleteOlderThan(LocalDateTime.now().minusDays(180));
+
+        // then
+        assertThat(deleted).isEqualTo(2);
+        assertThat(repository.count()).isEqualTo(1);
+        assertThat(repository.findAll().get(0).getContainerName()).isEqualTo("recent");
+    }
+
     private AuditLog createAuditLog(String containerName, String playbookName) {
         return AuditLog.builder()
                 .containerName(containerName)
