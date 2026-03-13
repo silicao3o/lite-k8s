@@ -51,14 +51,37 @@ services:
     restart: "no"
 
   # 시나리오 8: 라벨 기반 자가치유 테스트
+  # 첫 번째 기동: 10초 후 크래시 → 자가치유 트리거
+  # 자가치유 재시작 이후: 플래그 파일 감지 후 무한 실행 (계속 UP 유지)
   web-label-test:
     image: alpine:latest
     container_name: web-label-test
-    command: ["sh", "-c", "echo 'Label-based healing test'; sleep 10; exit 1"]
+    command:
+      - sh
+      - -c
+      - |
+        FLAG=/data/healed.flag
+        if [ -f "$FLAG" ]; then
+          echo "[web-label-test] 자가치유 성공! 재시작 #$(cat $FLAG)회 - 계속 실행 유지 중..."
+          COUNT=$(cat $FLAG)
+          echo $((COUNT + 1)) > $FLAG
+          while true; do
+            echo "[web-label-test] 정상 운영 중... ($(date '+%H:%M:%S')) - 재시작 횟수: $COUNT"
+            sleep 10
+          done
+        else
+          echo "[web-label-test] 최초 기동 - 10초 후 크래시하여 자가치유를 트리거합니다..."
+          echo 1 > $FLAG
+          sleep 10
+          echo "[web-label-test] 의도적 크래시! (자가치유 대기 중)"
+          exit 1
+        fi
     restart: "no"
+    volumes:
+      - web-label-test-data:/data
     labels:
       self-healing.enabled: "true"
-      self-healing.max-restarts: "2"
+      self-healing.max-restarts: "3"
 
   # 시나리오 9: 자가치유 비활성화 테스트 (라벨로 명시적 비활성화)
   test-no-heal:
@@ -68,3 +91,6 @@ services:
     restart: "no"
     labels:
       self-healing.enabled: "false"
+
+volumes:
+  web-label-test-data:
